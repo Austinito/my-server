@@ -1,0 +1,36 @@
+name: Test XML loading
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout my-server
+        uses: actions/checkout@v4
+
+      - name: Checkout xml-repo
+        uses: actions/checkout@v4
+        with:
+          repository: Austinito/xml-repo
+          path: xml-repo
+
+      - name: Load XML for selected environment
+        run: |
+          chmod +x scripts/load-xml.sh
+          ./scripts/load-xml.sh "${{ inputs.environment }}" ./xml-repo
+
+      - name: Run app
+        run: |
+          chmod +x scripts/run-server.sh
+          ./scripts/run-server.sh
