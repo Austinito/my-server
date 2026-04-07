@@ -30,14 +30,52 @@ jobs:
           repository: Austinito/xml-repo
           path: xml-repo
 
+      - name: Prevent latest in prod
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.environment }}" = "prod" ] && [ "${{ inputs.xml_version }}" = "latest" ]; then
+            echo "ERROR: prod deployments must use an explicit XML tag"
+            exit 1
+          fi
+
       - name: Resolve XML version
         id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_XML_VERSION: ${{ inputs.xml_version }}
+          XML_OWNER: Austinito
+          XML_REPO: xml-repo
         run: |
-          if [ "${{ inputs.xml_version }}" = "latest" ]; then
-            echo "xml_version=v100" >> $GITHUB_OUTPUT
+          set -euo pipefail
+
+          if [ "${REQUESTED_XML_VERSION}" = "latest" ]; then
+            echo "Resolving latest published XML release..."
+            curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${XML_OWNER}/${XML_REPO}/releases/latest" \
+              -o release.json
           else
-            echo "xml_version=${{ inputs.xml_version }}" >> $GITHUB_OUTPUT
+            echo "Resolving requested XML release: ${REQUESTED_XML_VERSION}"
+            curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${XML_OWNER}/${XML_REPO}/releases/tags/${REQUESTED_XML_VERSION}" \
+              -o release.json
           fi
+
+          XML_VERSION=$(jq -r '.tag_name' release.json)
+
+          if [ -z "${XML_VERSION}" ] || [ "${XML_VERSION}" = "null" ]; then
+            echo "ERROR: Could not resolve XML version"
+            cat release.json
+            exit 1
+          fi
+
+          echo "xml_version=${XML_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved XML version: ${XML_VERSION}"
 
       - name: Load XML
         run: |
