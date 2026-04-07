@@ -1,0 +1,53 @@
+name: Deploy (GHA-centered)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        required: true
+        options:
+          - dev
+          - test
+          - prod
+      xml_version:
+        description: XML version (e.g. v100 or latest)
+        required: true
+        default: latest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout server
+        uses: actions/checkout@v4
+
+      - name: Checkout xml repo
+        uses: actions/checkout@v4
+        with:
+          repository: Austinito/xml-repo
+          path: xml-repo
+
+      - name: Resolve XML version
+        id: resolve
+        run: |
+          if [ "${{ inputs.xml_version }}" = "latest" ]; then
+            echo "xml_version=v100" >> $GITHUB_OUTPUT
+          else
+            echo "xml_version=${{ inputs.xml_version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Load XML
+        run: |
+          chmod +x scripts/load-xml.sh
+          ./scripts/load-xml.sh \
+            "${{ inputs.environment }}" \
+            "${{ steps.resolve.outputs.xml_version }}" \
+            ./xml-repo
+
+      - name: Run server
+        run: |
+          chmod +x scripts/run-server.sh
+          ./scripts/run-server.sh
