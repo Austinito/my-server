@@ -86,6 +86,7 @@ jobs:
             ./xml-repo
 
       - name: Run server
+        env:
+          XML_VERSION: ${{ steps.resolve.outputs.xml_version }}
         run: |
-          chmod +x scripts/run-server.sh
           ./scripts/run-server.sh
